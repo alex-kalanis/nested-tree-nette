@@ -514,7 +514,7 @@ class MySql implements SourceInterface
     }
 
     /**
-     * @param string[] $params
+     * @param array<mixed> $params
      * @param Support\Conditions|null $where
      * @param string|null $replaceName
      * @return string
@@ -531,7 +531,7 @@ class MySql implements SourceInterface
     }
 
     /**
-     * @param string[] $params
+     * @param array<mixed> $params
      * @param Support\Options $options
      * @return string
      */
