@@ -94,7 +94,6 @@ class MySql implements SourceInterface
         $sql .= $this->addSearchSql($params, $options, 'parent.');
         $sql .= $this->addCustomQuerySql($params, $options->where);
         $sql .= $this->addSortingSql($params, $options);
-        /** @var literal-string $sql */
 
         // get 'total' count.
         $result = $this->database->fetchAll($sql, ...$params);
@@ -147,7 +146,6 @@ class MySql implements SourceInterface
             $sql .= ' LIMIT ' . $options->offset . ', ' . $options->limit;
         }
 
-        /** @var literal-string $sql */
         $result = $this->database->fetchAll($sql, ...$params);
 
         return $result ? $this->fromDbRows($result) : [];
@@ -177,7 +175,6 @@ class MySql implements SourceInterface
         $sql .= ' GROUP BY parent.`' . $this->settings->idColumnName . '`';
         $sql .= ' ORDER BY parent.`' . $this->settings->leftColumnName . '`';
 
-        /** @var literal-string $sql */
         $result = $this->database->fetchAll($sql, ...$params);
 
         if (empty($result)) {
@@ -308,7 +305,6 @@ class MySql implements SourceInterface
 
         $sql .= $this->addCustomQuerySql($params, $where, '');
 
-        /* @var literal-string $sql */
         $this->database->fetch($sql, ...$params);
 
         return true;
