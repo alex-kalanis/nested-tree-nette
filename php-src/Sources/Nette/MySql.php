@@ -308,7 +308,7 @@ class MySql implements SourceInterface
 
         $sql .= $this->addCustomQuerySql($params, $where, '');
 
-        /** @var literal-string $sql */
+        /* @var literal-string $sql */
         $this->database->fetch($sql, ...$params);
 
         return true;
