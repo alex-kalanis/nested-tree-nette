@@ -44,7 +44,7 @@ build:
         override:
           - command: WITH_TEST_ENV=1 vendor/bin/tester -C -j 1 php-tests --coverage-src php-src/ --coverage /home/scrutinizer/build/php-tests/temp/clover.xml
             coverage:
-              file:  /home/scrutinizer/build/php-tests/data/clover.xml
+              file:  /home/scrutinizer/build/php-tests/temp/clover.xml
               format: php-clover
 
 coding_style:
