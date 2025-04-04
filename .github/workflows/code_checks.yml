@@ -1,0 +1,91 @@
+name: 'Code Checks'
+
+on:
+  pull_request:
+    branches:
+      - master
+  push:
+    branches:
+      - master
+
+jobs:
+    tests:
+        services:
+            mysql:
+                image: mysql:8.0.29
+                env:
+                    MYSQL_ROOT_PASSWORD: 'dev_root'
+                    MYSQL_DATABASE: 'dev_testing'
+                ports:
+                    - "3306:3306"
+                options: >-
+                    --health-cmd "mysqladmin ping -pdev_root"
+                    --health-interval 10s
+                    --health-start-period 10s
+                    --health-timeout 5s
+                    --health-retries 10
+        runs-on: ubuntu-latest
+        env:
+            NESTED_TREE_MYSQL_DB_HOST: '127.0.0.1'
+            NESTED_TREE_MYSQL_DB_USER: 'root'
+            NESTED_TREE_MYSQL_DB_PASS: 'dev_root'
+            NESTED_TREE_MYSQL_DB_NAME: 'dev_testing'
+        strategy:
+            matrix:
+                php: [ '8.1', '8.2', '8.3', '8.4' ]
+        name: PHP ${{ matrix.php }} tests
+        steps:
+            - uses: actions/checkout@v2
+            - uses: shivammathur/setup-php@v2
+              with:
+                  php-version: ${{ matrix.php }}
+                  extensions: pdo, mysql
+                  coverage: xdebug
+            - run: composer install --no-progress
+            - run: WITH_TEST_ENV=1 vendor/bin/tester -C -j 1 php-tests --coverage-src php-src/ --coverage php-tests/temp/clover.xml
+
+    code_style:
+        runs-on: ubuntu-latest
+        strategy:
+            matrix:
+                php: [ '8.3' ]
+        name: PHP ${{ matrix.php }} code style
+        steps:
+            - uses: actions/checkout@v2
+            - uses: shivammathur/setup-php@v2
+              with:
+                  php-version: ${{ matrix.php }}
+                  tools: php-cs-fixer
+                  coverage: none
+            - run: PHP_CS_FIXER_IGNORE_ENV=1 php-cs-fixer check --format=txt --verbose --diff --allow-risky=yes --config=.php-cs-fixer.dist.php
+
+    phpstan:
+        runs-on: ubuntu-latest
+        strategy:
+            matrix:
+                php: [ '8.3' ]
+        name: PHP ${{ matrix.php }} phpstan
+        steps:
+            - uses: actions/checkout@v2
+            - uses: shivammathur/setup-php@v2
+              with:
+                  php-version: ${{ matrix.php }}
+                  tools: phpstan
+                  coverage: none
+            - run: phpstan analyse -c phpstan.neon
+
+    composer_dependencies:
+        runs-on: ubuntu-latest
+        strategy:
+            matrix:
+                php: [ '8.3' ]
+        name: PHP ${{ matrix.php }} problematic dependencies
+        steps:
+            - uses: actions/checkout@v2
+            - uses: shivammathur/setup-php@v2
+              with:
+                  php-version: ${{ matrix.php }}
+                  tools: composer-dependency-analyser
+                  coverage: none
+            - run: composer install --no-progress
+            - run: composer-dependency-analyser

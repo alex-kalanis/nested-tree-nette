@@ -1,0 +1,7 @@
+parameters:
+    level: 9
+    paths:
+        - php-src
+    ignoreErrors:
+        # strval, intval, floatval, boolval
+        - '#Parameter \#1 \$va[rl]u?e? of function [sibf][tnol][rtoo][la]?t?val expects#'

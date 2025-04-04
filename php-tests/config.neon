@@ -1,0 +1,18 @@
+parameters:
+    database:
+        driver: mysql
+        host: %NESTED_TREE_MYSQL_DB_HOST%
+        dbname: %NESTED_TREE_MYSQL_DB_NAME%
+        user: %NESTED_TREE_MYSQL_DB_USER%
+        password: %NESTED_TREE_MYSQL_DB_PASS%
+
+php:
+    date.timezone: Europe/Prague
+
+database:
+    dsn: '%database.driver%:host=%database.host%;dbname=%database.dbname%'
+    user: %database.user%
+    password: %database.password%
+    debugger: false
+    options:
+        lazy: yes

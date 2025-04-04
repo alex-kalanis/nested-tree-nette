@@ -1,0 +1,58 @@
+filter:
+  excluded_paths:
+    - 'vendor/*'
+    - '.github/*'
+    - 'examples/*'
+    - 'php-tests/*'
+  paths:
+    - 'php-src/*'
+
+build:
+  environment:
+    php:
+      version: '8.1'
+    variables:
+      NESTED_TREE_MYSQL_DB_USER: 'root'
+      NESTED_TREE_MYSQL_DB_PASS: ''
+      NESTED_TREE_MYSQL_DB_NAME: 'scrutinizer_run'
+  dependencies:
+    before:
+      - wget -O composer.phar https://getcomposer.org/composer.phar
+      - chmod +x composer.phar
+      - ./composer.phar install
+  nodes:
+    analysis:
+      services:
+          mysql: 8.4
+#          mariadb: 11.1 # no necessary ANY_VALUE function in DB - https://jira.mariadb.org/browse/MDEV-10426
+      project_setup:
+        before:
+          - sudo service start mysql || true
+          - mysql -e "CREATE DATABASE scrutinizer_run"
+      tests:
+        override:
+          - php-scrutinizer-run
+    coverage:
+      services:
+        mysql: 8.4
+#        mariadb: 11.1 # no necessary ANY_VALUE function in DB - https://jira.mariadb.org/browse/MDEV-10426
+      project_setup:
+        before:
+          - sudo service start mysql || true
+          - mysql -e "CREATE DATABASE scrutinizer_run"
+      tests:
+        override:
+          - command: WITH_TEST_ENV=1 vendor/bin/tester -C -j 1 php-tests --coverage-src php-src/ --coverage /home/scrutinizer/build/php-tests/temp/clover.xml
+            coverage:
+              file:  /home/scrutinizer/build/php-tests/data/clover.xml
+              format: php-clover
+
+coding_style:
+  php:
+    spaces:
+      around_operators:
+        concatenation: true
+      ternary_operator:
+        in_short_version: false
+      other:
+        after_type_cast: true

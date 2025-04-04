@@ -1,0 +1,32 @@
+# Editor configuration
+/.idea
+*.iml
+
+# Setuptools, their dist folder
+composer.phar
+composer.lock
+vendor/
+build/
+dist/
+
+# checks
+phpunit
+phpunit-*
+.phpunit.cache*
+/.php-cs-fixer.cache
+/.phpunit.result.cache
+/tests/resources/generated
+/tests/coverage
+
+# external libs
+temp/*
+!temp/.gitkeep
+php-tests/temp/*
+!php-tests/temp/.gitkeep
+php-tests/external/
+php-tests/data/clover.xml
+discard/
+
+# environment
+docker-compose.yml
+phpdocker/
