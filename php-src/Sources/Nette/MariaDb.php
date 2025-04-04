@@ -38,7 +38,6 @@ class MariaDb extends MySql
         $sql .= $this->addSearchSql($params, $options, 'parent.');
         $sql .= $this->addCustomQuerySql($params, $options->where);
         $sql .= $this->addSortingSql($params, $options);
-        /** @var literal-string $sql */
 
         // get 'total' count.
         $result = $this->database->fetchAll($sql, ...$params);
@@ -91,7 +90,6 @@ class MariaDb extends MySql
             $sql .= ' LIMIT ' . $options->offset . ', ' . $options->limit;
         }
 
-        /** @var literal-string $sql */
         $result = $this->database->fetchAll($sql, ...$params);
 
         return $result ? $this->fromDbRows($result) : [];
@@ -121,7 +119,6 @@ class MariaDb extends MySql
         $sql .= ' GROUP BY parent.`' . $this->settings->idColumnName . '`';
         $sql .= ' ORDER BY parent.`' . $this->settings->leftColumnName . '`';
 
-        /** @var literal-string $sql */
         $result = $this->database->fetchAll($sql, ...$params);
 
         if (empty($result)) {

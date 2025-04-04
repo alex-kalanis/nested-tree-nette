@@ -7,3 +7,4 @@ parameters:
         - '#Parameter \#1 \$va[rl]u?e? of function [sibf][tnol][rtoo][la]?t?val expects#'
         # idiocy of sql strings
         - '#Parameter \#1 \$sql of method Nette\\Database\\Explorer\:\:fetch\(\) expects literal\-string#'
+        - '#Parameter \#1 \$sql of method Nette\\Database\\Explorer\:\:fetchAll\(\) expects literal\-string#'
