@@ -10,8 +10,8 @@
 /.php_cs-fixer.dist.php export-ignore
 /.scrutinizer.yml       export-ignore
 /.travis.yml            export-ignore
-/phpstan.yml            export-ignore
-/rector.yml             export-ignore
+/phpstan.neon           export-ignore
+/rector.php             export-ignore
 /CONTRIBUTING.md        export-ignore
 /logo.png               export-ignore
 /phpunit.xml            export-ignore
