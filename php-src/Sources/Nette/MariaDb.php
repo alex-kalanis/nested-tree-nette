@@ -16,12 +16,15 @@ class MariaDb extends MySql
         $sql = 'SELECT ';
         $sql .= ' parent.' . $this->settings->idColumnName . ' AS p_cid';
         $sql .= ', parent.' . $this->settings->parentIdColumnName . ' AS p_pid';
+        if ($this->settings->softDelete) {
+            $sql .= ', parent.' . $this->settings->softDelete->columnName;
+        }
         if (!is_null($options->currentId) || !is_null($options->parentId) || !empty($options->search) || $options->joinChild) {
             $sql .= ', child.' . $this->settings->idColumnName . ' AS `' . $this->settings->idColumnName . '`';
             $sql .= ', child.' . $this->settings->parentIdColumnName . ' AS `' . $this->settings->parentIdColumnName . '`';
             $sql .= ', child.' . $this->settings->leftColumnName . ' AS `' . $this->settings->leftColumnName . '`';
         }
-        $sql .= $this->addAdditionalColumns($options);
+        $sql .= $this->addAdditionalColumnsSql($options);
         $sql .= ' FROM ' . $this->settings->tableName . ' AS parent';
 
         if (!is_null($options->currentId) || !is_null($options->parentId) || !empty($options->search) || $options->joinChild) {
@@ -30,13 +33,14 @@ class MariaDb extends MySql
             $sql .= ' ON child.' . $this->settings->leftColumnName . ' BETWEEN parent.' . $this->settings->leftColumnName . ' AND parent.' . $this->settings->rightColumnName;
         }
 
-        $sql .= ' WHERE 1';
+        $sql .= ' WHERE TRUE';
         $params = [];
         $sql .= $this->addFilterBySql($params, $options);
         $sql .= $this->addCurrentIdSql($params, $options, 'parent.');
         $sql .= $this->addParentIdSql($params, $options, 'parent.');
         $sql .= $this->addSearchSql($params, $options, 'parent.');
         $sql .= $this->addCustomQuerySql($params, $options->where);
+        $sql .= $this->addSoftDeleteSql('parent.');
         $sql .= $this->addSortingSql($params, $options);
 
         // get 'total' count.
@@ -60,7 +64,7 @@ class MariaDb extends MySql
             $sql .= ', child.' . $this->settings->levelColumnName . ' AS `' . $this->settings->levelColumnName . '`';
             $sql .= ', child.' . $this->settings->positionColumnName . ' AS `' . $this->settings->positionColumnName . '`';
         }
-        $sql .= $this->addAdditionalColumns($options);
+        $sql .= $this->addAdditionalColumnsSql($options);
         $sql .= ' FROM ' . $this->settings->tableName . ' AS parent';
 
         if (!is_null($options->currentId) || !is_null($options->parentId) || !empty($options->search) || $options->joinChild) {
@@ -69,13 +73,14 @@ class MariaDb extends MySql
             $sql .= ' ON child.' . $this->settings->leftColumnName . ' BETWEEN parent.' . $this->settings->leftColumnName . ' AND parent.' . $this->settings->rightColumnName;
         }
 
-        $sql .= ' WHERE 1';
+        $sql .= ' WHERE TRUE';
         $params = [];
         $sql .= $this->addFilterBySql($params, $options);
         $sql .= $this->addCurrentIdSql($params, $options, 'parent.');
         $sql .= $this->addParentIdSql($params, $options, 'parent.');
         $sql .= $this->addSearchSql($params, $options, 'parent.');
         $sql .= $this->addCustomQuerySql($params, $options->where);
+        $sql .= $this->addSoftDeleteSql('parent.');
         $sql .= $this->addSortingSql($params, $options);
 
         // re-create query and prepare. second step is for set limit and fetch all items.
@@ -108,7 +113,7 @@ class MariaDb extends MySql
         $sql .= ', parent.' . $this->settings->rightColumnName . ' AS `' . $this->settings->rightColumnName . '`';
         $sql .= ', parent.' . $this->settings->levelColumnName . ' AS `' . $this->settings->levelColumnName . '`';
         $sql .= ', parent.' . $this->settings->positionColumnName . ' AS `' . $this->settings->positionColumnName . '`';
-        $sql .= $this->addAdditionalColumns($options);
+        $sql .= $this->addAdditionalColumnsSql($options);
         $sql .= ' FROM ' . $this->settings->tableName . ' AS node,';
         $sql .= ' ' . $this->settings->tableName . ' AS parent';
         $sql .= ' WHERE';
@@ -116,6 +121,7 @@ class MariaDb extends MySql
         $sql .= $this->addCurrentIdSql($params, $options, 'node.');
         $sql .= $this->addSearchSql($params, $options, 'node.');
         $sql .= $this->addCustomQuerySql($params, $options->where);
+        $sql .= $this->addSoftDeleteSql('node.');
         $sql .= ' GROUP BY parent.`' . $this->settings->idColumnName . '`';
         $sql .= ' ORDER BY parent.`' . $this->settings->leftColumnName . '`';
 

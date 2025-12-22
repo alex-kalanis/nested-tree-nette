@@ -3,6 +3,7 @@
 namespace Tests\NetteExtendedDbTests;
 
 require_once dirname(__DIR__) . DIRECTORY_SEPARATOR . 'AbstractDatabaseTestCase.php';
+require_once __DIR__ . DIRECTORY_SEPARATOR . 'ExtendedTableSettings.php';
 
 use kalanis\nested_tree\Support;
 use kalanis\nested_tree_nette\Sources\Nette\MySql;
@@ -38,8 +39,8 @@ abstract class AbstractExtendedDbTests extends AbstractDatabaseTestCase
     {
         $options = new Support\Options();
         $optionsWhere = new Support\Conditions();
-        $optionsWhere->query = '`t_type` = :t_type';
-        $optionsWhere->bindValues = [':t_type' => $type];
+        $optionsWhere->query = '`t_type` = ?';
+        $optionsWhere->bindValues = [$type];
         $options->where = $optionsWhere;
         $this->nestedSet->rebuild($options);
     }
@@ -100,15 +101,4 @@ abstract class AbstractExtendedDbTests extends AbstractDatabaseTestCase
 (32, 28, 'product-category', 'MSI', 0, 3, 0, 0, 0);
 ");
     }
-}
-
-class ExtendedTableSettings extends Support\TableSettings
-{
-    public string $tableName = 'test_taxonomy_2';
-    public string $idColumnName = 'tid';
-    public string $parentIdColumnName = 'parent_id';
-    public string $leftColumnName = 't_left';
-    public string $rightColumnName = 't_right';
-    public string $levelColumnName = 't_level';
-    public string $positionColumnName = 't_position';
 }

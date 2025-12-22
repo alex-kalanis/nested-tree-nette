@@ -38,7 +38,7 @@ class UpdateDbTest extends AbstractSimpleDbTests
 
         $options = new Support\Options();
         $options->joinChild = true;
-        $options->additionalColumns = ['ANY_VALUE(child.name) as name'];
+        $options->additionalColumns = ['ANY_VALUE(child.name) AS name'];
         $where = new Support\Conditions();
         $where->query = 'child.name LIKE ?';
         $where->bindValues = ['2.1.1.%'];
@@ -70,7 +70,7 @@ class UpdateDbTest extends AbstractSimpleDbTests
 
         $options = new Support\Options();
         $options->joinChild = true;
-        $options->additionalColumns = ['ANY_VALUE(child.name) as name'];
+        $options->additionalColumns = ['ANY_VALUE(child.name) AS name'];
         $where = new Support\Conditions();
         $where->query = 'child.name LIKE ?';
         $where->bindValues = ['2.1.1.%'];
@@ -103,7 +103,7 @@ class UpdateDbTest extends AbstractSimpleDbTests
 
         $options = new Support\Options();
         $options->joinChild = true;
-        $options->additionalColumns = ['ANY_VALUE(child.name) as name'];
+        $options->additionalColumns = ['ANY_VALUE(child.name) AS name'];
         $where = new Support\Conditions();
         $where->query = 'child.parent_id = ?';
         $options->where = $where;
@@ -154,7 +154,7 @@ class UpdateDbTest extends AbstractSimpleDbTests
 
         $extraOptions = new Support\Options();
         $extraOptions->joinChild = true;
-        $extraOptions->additionalColumns = ['ANY_VALUE(child.name) as name'];
+        $extraOptions->additionalColumns = ['ANY_VALUE(child.name) AS name'];
         $extraWhere = new Support\Conditions();
         $extraWhere->query = 'child.name LIKE ?';
         $extraWhere->bindValues = ['14.1.%'];
@@ -170,7 +170,7 @@ class UpdateDbTest extends AbstractSimpleDbTests
 
         $options = new Support\Options();
         $options->joinChild = true;
-        $options->additionalColumns = ['ANY_VALUE(child.name) as name'];
+        $options->additionalColumns = ['ANY_VALUE(child.name) AS name'];
         $conditions = new Support\Conditions();
         $conditions->query = 'child.name LIKE ?';
         $conditions->bindValues = ['14.1.%'];

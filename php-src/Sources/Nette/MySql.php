@@ -23,12 +23,13 @@ class MySql implements SourceInterface
     /**
      * {@inheritdoc}
      */
-    public function selectLastPosition(?int $parentNodeId, ?Support\Conditions $where) : ?int
+    public function selectLastPosition(?Support\Node $parentNode, ?Support\Conditions $where) : ?int
     {
         $selection = $this->database
             ->table($this->settings->tableName)
-            ->where([$this->settings->parentIdColumnName => $parentNodeId]);
+            ->where([$this->settings->parentIdColumnName => $parentNode?->id]);
         $this->addCustomQuery($selection, $where);
+        $this->addSoftDelete($selection);
         $result = $selection
             ->order($this->settings->positionColumnName . ' DESC')
             ->fetch();
@@ -41,13 +42,23 @@ class MySql implements SourceInterface
      */
     public function selectSimple(Support\Options $options) : array
     {
-        $selection = $this->database
-            ->table($this->settings->tableName);
-        $this->addCurrentId($selection, $options);
-        $this->addCustomQuery($selection, $options->where);
-        $result = $selection
-            ->order($this->settings->positionColumnName . ' ASC')
-            ->fetchAll();
+        $params = [];
+        $sql = 'SELECT node.`' . $this->settings->idColumnName . '`'
+            . ', node.`' . $this->settings->parentIdColumnName . '`'
+            . ', node.`' . $this->settings->leftColumnName . '`'
+            . ', node.`' . $this->settings->rightColumnName . '`'
+            . ', node.`' . $this->settings->levelColumnName . '`'
+            . ', node.`' . $this->settings->positionColumnName . '`'
+        ;
+        $sql .= $this->addAdditionalColumnsSql($options, 'node.');
+        $sql .= ' FROM `' . $this->settings->tableName . '` node';
+        $sql .= ' WHERE TRUE';
+        $sql .= $this->addCurrentIdSql($params, $options, 'node.');
+        $sql .= $this->addCustomQuerySql($params, $options->where, 'node.');
+        $sql .= $this->addSoftDeleteSql('node.');
+        $sql .= ' ORDER BY node.`' . $this->settings->positionColumnName . '` ASC';
+
+        $result = $this->database->fetchAll($sql, ...$params);
 
         return $result ? $this->fromDbRows($result) : [];
     }
@@ -55,16 +66,25 @@ class MySql implements SourceInterface
     /**
      * {@inheritdoc}
      */
-    public function selectParent(int $nodeId, Support\Options $options) : ?int
+    public function selectParent(Support\Node $node, Support\Options $options) : ?Support\Node
     {
+        if (is_null($node->parentId)) {
+            return null;
+        }
+
         $selection = $this->database
             ->table($this->settings->tableName)
-            ->where([$this->settings->idColumnName => $nodeId]);
+            ->where([$this->settings->idColumnName => $node->parentId]);
         $this->addCustomQuery($selection, $options->where, '');
+        $this->addSoftDelete($selection);
         $row = $selection->fetch();
-        $parent_id = !empty($row) ? $row->{$this->settings->parentIdColumnName} : null;
+        $parentNode = !empty($row) ? $this->fillDataFromRow($row) : null;
 
-        return (empty($parent_id)) ? ($this->settings->rootIsNull ? null : 0) : max(0, intval($parent_id));
+        if (empty($parentNode)) {
+            return $this->settings->rootIsNull ? null : new Support\Node();
+        }
+
+        return $parentNode;
     }
 
     public function selectCount(Support\Options $options) : int
@@ -72,12 +92,15 @@ class MySql implements SourceInterface
         $sql = 'SELECT ';
         $sql .= ' ANY_VALUE(parent.' . $this->settings->idColumnName . ') AS p_cid';
         $sql .= ', ANY_VALUE(parent.' . $this->settings->parentIdColumnName . ') AS p_pid';
+        if ($this->settings->softDelete) {
+            $sql .= ', ANY_VALUE(parent.' . $this->settings->softDelete->columnName . ')';
+        }
         if (!is_null($options->currentId) || !is_null($options->parentId) || !empty($options->search) || $options->joinChild) {
             $sql .= ', ANY_VALUE(child.' . $this->settings->idColumnName . ') AS `' . $this->settings->idColumnName . '`';
             $sql .= ', ANY_VALUE(child.' . $this->settings->parentIdColumnName . ') AS `' . $this->settings->parentIdColumnName . '`';
             $sql .= ', ANY_VALUE(child.' . $this->settings->leftColumnName . ') AS `' . $this->settings->leftColumnName . '`';
         }
-        $sql .= $this->addAdditionalColumns($options);
+        $sql .= $this->addAdditionalColumnsSql($options);
         $sql .= ' FROM ' . $this->settings->tableName . ' AS parent';
 
         if (!is_null($options->currentId) || !is_null($options->parentId) || !empty($options->search) || $options->joinChild) {
@@ -86,13 +109,14 @@ class MySql implements SourceInterface
             $sql .= ' ON child.' . $this->settings->leftColumnName . ' BETWEEN parent.' . $this->settings->leftColumnName . ' AND parent.' . $this->settings->rightColumnName;
         }
 
-        $sql .= ' WHERE 1';
+        $sql .= ' WHERE TRUE';
         $params = [];
         $sql .= $this->addFilterBySql($params, $options);
         $sql .= $this->addCurrentIdSql($params, $options, 'parent.');
         $sql .= $this->addParentIdSql($params, $options, 'parent.');
         $sql .= $this->addSearchSql($params, $options, 'parent.');
         $sql .= $this->addCustomQuerySql($params, $options->where);
+        $sql .= $this->addSoftDeleteSql('parent.');
         $sql .= $this->addSortingSql($params, $options);
 
         // get 'total' count.
@@ -116,7 +140,7 @@ class MySql implements SourceInterface
             $sql .= ', ANY_VALUE(child.' . $this->settings->levelColumnName . ') AS `' . $this->settings->levelColumnName . '`';
             $sql .= ', ANY_VALUE(child.' . $this->settings->positionColumnName . ') AS `' . $this->settings->positionColumnName . '`';
         }
-        $sql .= $this->addAdditionalColumns($options);
+        $sql .= $this->addAdditionalColumnsSql($options);
         $sql .= ' FROM ' . $this->settings->tableName . ' AS parent';
 
         if (!is_null($options->currentId) || !is_null($options->parentId) || !empty($options->search) || $options->joinChild) {
@@ -125,13 +149,14 @@ class MySql implements SourceInterface
             $sql .= ' ON child.' . $this->settings->leftColumnName . ' BETWEEN parent.' . $this->settings->leftColumnName . ' AND parent.' . $this->settings->rightColumnName;
         }
 
-        $sql .= ' WHERE 1';
+        $sql .= ' WHERE TRUE';
         $params = [];
         $sql .= $this->addFilterBySql($params, $options);
         $sql .= $this->addCurrentIdSql($params, $options, 'parent.');
         $sql .= $this->addParentIdSql($params, $options, 'parent.');
         $sql .= $this->addSearchSql($params, $options, 'parent.');
         $sql .= $this->addCustomQuerySql($params, $options->where);
+        $sql .= $this->addSoftDeleteSql('parent.');
         $sql .= $this->addSortingSql($params, $options);
 
         // re-create query and prepare. second step is for set limit and fetch all items.
@@ -164,7 +189,7 @@ class MySql implements SourceInterface
         $sql .= ', ANY_VALUE(parent.' . $this->settings->rightColumnName . ') AS `' . $this->settings->rightColumnName . '`';
         $sql .= ', ANY_VALUE(parent.' . $this->settings->levelColumnName . ') AS `' . $this->settings->levelColumnName . '`';
         $sql .= ', ANY_VALUE(parent.' . $this->settings->positionColumnName . ') AS `' . $this->settings->positionColumnName . '`';
-        $sql .= $this->addAdditionalColumns($options);
+        $sql .= $this->addAdditionalColumnsSql($options);
         $sql .= ' FROM ' . $this->settings->tableName . ' AS node,';
         $sql .= ' ' . $this->settings->tableName . ' AS parent';
         $sql .= ' WHERE';
@@ -172,6 +197,7 @@ class MySql implements SourceInterface
         $sql .= $this->addCurrentIdSql($params, $options, 'node.');
         $sql .= $this->addSearchSql($params, $options, 'node.');
         $sql .= $this->addCustomQuerySql($params, $options->where);
+        $sql .= $this->addSoftDeleteSql('node.');
         $sql .= ' GROUP BY parent.`' . $this->settings->idColumnName . '`';
         $sql .= ' ORDER BY parent.`' . $this->settings->leftColumnName . '`';
 
@@ -191,9 +217,14 @@ class MySql implements SourceInterface
     {
         $pairs = [];
         foreach ((array) $node as $column => $value) {
-            if (!is_numeric($column) && !$this->isColumnNameFromBasic($column)) {
+            if (
+                !is_numeric($column)
+                && !$this->isColumnNameFromBasic($column)
+            ) {
                 $translateColumn = $this->translateColumn($this->settings, $column);
-                $pairs[$translateColumn] = $value;
+                if (!is_null($translateColumn)) {
+                    $pairs[$translateColumn] = $value;
+                }
             }
         }
 
@@ -220,10 +251,11 @@ class MySql implements SourceInterface
                 !is_numeric($column)
                 && !$this->isColumnNameFromBasic($column)
                 && !$this->isColumnNameFromTree($column)
-                && !is_null($value)
             ) {
                 $translateColumn = $this->translateColumn($this->settings, $column);
-                $pairs[$translateColumn] = $value;
+                if (!is_null($translateColumn)) {
+                    $pairs[$translateColumn] = $value;
+                }
             }
         }
 
@@ -238,15 +270,18 @@ class MySql implements SourceInterface
     /**
      * {@inheritdoc}
      */
-    public function updateNodeParent(int $nodeId, ?int $parentId, int $position, ?Support\Conditions $where) : bool
+    public function updateNodeParent(Support\Node $node, ?Support\Node $parent, int $position, ?Support\Conditions $where) : bool
     {
+        $parent = $parent ?: ($this->settings->rootIsNull ? null : new Support\Node());
+
         $selection = $this->database
             ->table($this->settings->tableName)
-            ->where([$this->settings->idColumnName => $nodeId]);
+            ->where([$this->settings->idColumnName => $node->id]);
         $this->addCustomQuery($selection, $where, '');
+        $this->addSoftDelete($selection);
 
         $counter = $selection->update([
-            $this->settings->parentIdColumnName => $parentId,
+            $this->settings->parentIdColumnName => $parent?->id,
             $this->settings->positionColumnName => $position,
         ]);
 
@@ -256,15 +291,18 @@ class MySql implements SourceInterface
     /**
      * {@inheritdoc}
      */
-    public function updateChildrenParent(int $nodeId, ?int $parentId, ?Support\Conditions $where) : bool
+    public function updateChildrenParent(Support\Node $node, ?Support\Node $parent, ?Support\Conditions $where) : bool
     {
+        $parent = $parent ?: ($this->settings->rootIsNull ? null : new Support\Node());
+
         $selection = $this->database
             ->table($this->settings->tableName)
-            ->where([$this->settings->parentIdColumnName => $nodeId]);
+            ->where([$this->settings->parentIdColumnName => $node->id]);
         $this->addCustomQuery($selection, $where, '');
+        $this->addSoftDelete($selection);
 
         $counter = $selection->update([
-            $this->settings->parentIdColumnName => $parentId,
+            $this->settings->parentIdColumnName => $parent?->id,
         ]);
 
         return !empty($counter);
@@ -276,6 +314,7 @@ class MySql implements SourceInterface
             ->table($this->settings->tableName)
             ->where([$this->settings->idColumnName => $row->id]);
         $this->addCustomQuery($selection, $where, '');
+        $this->addSoftDelete($selection);
 
         $counter = $selection->update([
             $this->settings->levelColumnName => $row->level,
@@ -290,18 +329,24 @@ class MySql implements SourceInterface
     /**
      * {@inheritdoc}
      */
-    public function makeHole(?int $parentId, int $position, bool $moveUp, ?Support\Conditions $where = null) : bool
+    public function makeHole(?Support\Node $parent, int $position, bool $moveUp, ?Support\Conditions $where = null) : bool
     {
         $direction = $moveUp ? '-' : '+';
         $compare = $moveUp ? '<=' : '>=';
         $sql = 'UPDATE ' . $this->settings->tableName;
         $sql .= ' SET ' . $this->settings->positionColumnName . ' = ' . $this->settings->positionColumnName . ' ' . $direction . ' 1';
-        $sql .= ' WHERE ' . $this->settings->parentIdColumnName . ' = ?';
+        if (is_null($parent)) {
+            $sql .= ' WHERE ' . $this->settings->parentIdColumnName . ' IS NULL';
+        } else {
+            $sql .= ' WHERE ' . $this->settings->parentIdColumnName . ' = ?';
+        }
         $sql .= ' AND ' . $this->settings->positionColumnName . ' ' . $compare . ' ?';
-        $params = [
-            $parentId,
-            $position,
-        ];
+        $sql .= $this->addSoftDeleteSql();
+        $params = [];
+        if (!is_null($parent)) {
+            $params[] = $parent->id;
+        }
+        $params[] = $position;
 
         $sql .= $this->addCustomQuerySql($params, $where, '');
 
@@ -313,23 +358,13 @@ class MySql implements SourceInterface
     /**
      * {@inheritdoc}
      */
-    public function deleteSolo(int $nodeId, ?Support\Conditions $where) : bool
+    public function deleteSolo(Support\Node $node, ?Support\Conditions $where) : bool
     {
         $selection = $this->database
             ->table($this->settings->tableName)
-            ->where([$this->settings->idColumnName => $nodeId]);
+            ->where([$this->settings->idColumnName => $node->id]);
         $this->addCustomQuery($selection, $where, '');
-        $counter = $selection->delete();
-
-        return !empty($counter);
-    }
-
-    public function deleteWithChildren(Support\Node $row, ?Support\Conditions $where) : bool
-    {
-        $selection = $this->database
-            ->table($this->settings->tableName)
-            ->where([$this->settings->idColumnName => $row->id]);
-        $this->addCustomQuery($selection, $where, '');
+        $this->addSoftDelete($selection);
         $counter = $selection->delete();
 
         return !empty($counter);
@@ -388,7 +423,31 @@ class MySql implements SourceInterface
         return $query;
     }
 
-    protected function addAdditionalColumns(Support\Options $options, ?string $replaceName = null) : string
+    /**
+     * @param Selection<ActiveRow> $selection
+     * @param Support\Options $options
+     * @param string|null $replaceName
+     * @return void
+     */
+    protected function addAdditionalColumns(Selection $selection, Support\Options $options, ?string $replaceName = null) : void
+    {
+        $columns = [];
+        if (!empty($options->additionalColumns)) {
+            foreach ($options->additionalColumns as $column) {
+                $columns[] = (!is_null($replaceName) ? $this->replaceColumns($column, $replaceName) : $column);
+            }
+        }
+        if (!empty($columns)) {
+            $selection->select(implode(', ', $columns));
+        }
+    }
+
+    /**
+     * @param Support\Options $options
+     * @param string|null $replaceName
+     * @return string
+     */
+    protected function addAdditionalColumnsSql(Support\Options $options, ?string $replaceName = null) : string
     {
         $sql = '';
         if (!empty($options->additionalColumns)) {
@@ -510,7 +569,7 @@ class MySql implements SourceInterface
     }
 
     /**
-     * @param array<mixed> $params
+     * @param string[] $params
      * @param Support\Conditions|null $where
      * @param string|null $replaceName
      * @return string
@@ -527,7 +586,35 @@ class MySql implements SourceInterface
     }
 
     /**
-     * @param array<mixed> $params
+     * @param Selection<ActiveRow> $selection
+     * @param string $dbPrefix
+     * @return void
+     */
+    protected function addSoftDelete(Selection $selection, string $dbPrefix = '') : void
+    {
+        if (!is_null($this->settings->softDelete)) {
+            $selection->where([
+                ($dbPrefix ? $dbPrefix . '.' : '') . $this->settings->softDelete->columnName => $this->settings->softDelete->canUse,
+            ]);
+        }
+    }
+
+    /**
+     * @param string $dbPrefix
+     * @return string
+     */
+    protected function addSoftDeleteSql(string $dbPrefix = '') : string
+    {
+        $sql = '';
+        if (!is_null($this->settings->softDelete)) {
+            $sql .= ' AND ' . $dbPrefix . '`' . $this->settings->softDelete->columnName . '` = ' . $this->settings->softDelete->canUse;
+        }
+
+        return $sql;
+    }
+
+    /**
+     * @param string[] $params
      * @param Support\Options $options
      * @return string
      */

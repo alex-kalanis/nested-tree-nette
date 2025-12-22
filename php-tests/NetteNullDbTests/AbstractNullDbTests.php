@@ -3,8 +3,8 @@
 namespace Tests\NetteNullDbTests;
 
 require_once dirname(__DIR__) . DIRECTORY_SEPARATOR . 'AbstractDatabaseTestCase.php';
+require_once __DIR__ . DIRECTORY_SEPARATOR . 'NullTableSettings.php';
 
-use kalanis\nested_tree\Support;
 use kalanis\nested_tree_nette\Sources\Nette\MySql;
 use Tests\AbstractDatabaseTestCase;
 use Tests\MockNode;
@@ -77,11 +77,4 @@ abstract class AbstractNullDbTests extends AbstractDatabaseTestCase
 (20, 16, '3.2.3', 3, 0, 0, 0);
 ");
     }
-}
-
-class NullTableSettings extends Support\TableSettings
-{
-    public string $tableName = 'test_taxonomy_3';
-
-    public bool $rootIsNull = true;
 }
