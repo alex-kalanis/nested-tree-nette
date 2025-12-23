@@ -244,7 +244,7 @@ class MySql implements SourceInterface
         $row = $this->database
             ->table($this->settings->tableName)
             ->insert($pairs);
-        $node = !empty($row) && is_object($row) && (is_a($row, ActiveRow::class) || is_a($row, Row::class)) ? $this->fillDataFromRow($row) : null;
+        $node = !empty($row) && is_object($row) ? $this->fillDataFromRow($row) : null;
 
         if (is_null($node)) {
             // @codeCoverageIgnoreStart
@@ -582,7 +582,7 @@ class MySql implements SourceInterface
     }
 
     /**
-     * @param string[] $params
+     * @param array<mixed> $params
      * @param Support\Conditions|null $where
      * @param string|null $replaceName
      * @return string
@@ -627,7 +627,7 @@ class MySql implements SourceInterface
     }
 
     /**
-     * @param string[] $params
+     * @param array<mixed> $params
      * @param Support\Options $options
      * @return string
      */
