@@ -55,23 +55,20 @@ class CreateDbTest extends AbstractExtendedDbTests
         $this->nestedSet->rebuild($option1);
 
         // get the result of 3
-        $sql = 'SELECT * FROM ' . $this->settings->tableName . ' WHERE ' . $this->settings->idColumnName . ' = ?';
-        $row = $this->connection->fetch($sql, 3);
+        $row = $this->getRow($this->dbExplorer, $this->settings, 3);
         // assert value must be matched.
         Assert::equal(40, $row->{$this->settings->rightColumnName});
         Assert::equal(1, $row->{$this->settings->levelColumnName});
 
         // get the result of 10
-        $sql = 'SELECT * FROM ' . $this->settings->tableName . ' WHERE ' . $this->settings->idColumnName . ' = ?';
-        $row = $this->connection->fetch($sql, 10);
+        $row = $this->getRow($this->dbExplorer, $this->settings, 10);
         // assert value must be matched.
         Assert::equal(13, $row->{$this->settings->leftColumnName});
         Assert::equal(14, $row->{$this->settings->rightColumnName});
         Assert::equal(3, $row->{$this->settings->levelColumnName});
 
         // get the result of 29 (t_type = product_category and it did not yet rebuilt).
-        $sql = 'SELECT * FROM ' . $this->settings->tableName . ' WHERE ' . $this->settings->idColumnName . ' = ?';
-        $row = $this->connection->fetch($sql, 29);
+        $row = $this->getRow($this->dbExplorer, $this->settings, 29);
         // assert value must be matched.
         Assert::equal(0, $row->{$this->settings->leftColumnName});
         Assert::equal(0, $row->{$this->settings->rightColumnName});

@@ -63,6 +63,7 @@ abstract class TestCase extends Tester\TestCase
     protected function getRow(Explorer $database, Support\TableSettings $settings, int $rowId) : ?Row
     {
         $sql = 'SELECT * FROM ' . $settings->tableName . ' WHERE ' . $settings->idColumnName . ' = ?';
+
         return $database->query($sql, $rowId)->fetch();
     }
 }

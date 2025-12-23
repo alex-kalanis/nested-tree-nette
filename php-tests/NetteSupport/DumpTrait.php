@@ -22,6 +22,7 @@ trait DumpTrait
         foreach ($rows as $row) {
             $entries[] = (array) $row;
         }
+
         return $entries;
     }
 }

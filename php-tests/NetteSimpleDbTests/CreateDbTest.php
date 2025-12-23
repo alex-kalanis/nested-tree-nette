@@ -45,16 +45,13 @@ class CreateDbTest extends AbstractSimpleDbTests
         $this->nestedSet->rebuild();
 
         // get the result of 3
-        $sql = 'SELECT * FROM ' . $this->settings->tableName . ' WHERE ' . $this->settings->idColumnName . ' = ?';
-        $row = $this->connection->fetch($sql, 3);
+        $row = $this->getRow($this->dbExplorer, $this->settings, 3);
         // assert value must be matched.
         Assert::equal(40, $row->{$this->settings->rightColumnName});
         Assert::equal(1, $row->{$this->settings->levelColumnName});
 
         // get the result of 10
-        $sql = 'SELECT * FROM ' . $this->settings->tableName . ' WHERE ' . $this->settings->idColumnName . ' = ?';
-        $row = $this->connection->fetch($sql, 10);
-
+        $row = $this->getRow($this->dbExplorer, $this->settings, 10);
         // assert value must be matched.
         Assert::equal(13, $row->{$this->settings->leftColumnName});
         Assert::equal(14, $row->{$this->settings->rightColumnName});
@@ -70,8 +67,7 @@ class CreateDbTest extends AbstractSimpleDbTests
         $this->nestedSet->rebuild();
         Assert::equal(21, $node->id);
 
-        $sql = 'SELECT * FROM ' . $this->settings->tableName . ' WHERE ' . $this->settings->idColumnName . ' = ?';
-        $row = $this->connection->fetch($sql, $node->id);
+        $row = $this->getRow($this->dbExplorer, $this->settings, $node->id);
 
         // recalculated
         Assert::equal(41, $row->{$this->settings->leftColumnName});

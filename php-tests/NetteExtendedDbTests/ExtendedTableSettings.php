@@ -13,4 +13,7 @@ class ExtendedTableSettings extends Support\TableSettings
     public string $rightColumnName = 't_right';
     public string $levelColumnName = 't_level';
     public string $positionColumnName = 't_position';
+
+    /* this one will be processed as extra */
+    public string $name = 't_name';
 }

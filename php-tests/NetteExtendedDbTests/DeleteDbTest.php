@@ -146,8 +146,7 @@ class DeleteDbTest extends AbstractExtendedDbTests
         Assert::count(11, $resultAfterDelete);
 
         // test by get some child of deleted item.
-        $sql = 'SELECT * FROM ' . $this->settings->tableName . ' WHERE ' . $this->settings->idColumnName . ' = ?';
-        $row = $this->connection->fetch($sql, 30);
+        $row = $this->getRow($this->dbExplorer, $this->settings, 30); // get dell (30)
         Assert::equal(22, $row->{$this->settings->parentIdColumnName}); // test that dell's (30) parent is computer (22) now. before delete desktop (28), dell's (30) parent is desktop (28).
     }
 

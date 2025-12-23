@@ -41,7 +41,7 @@ class MySql implements SourceInterface
         $sql .= $this->addSoftDeleteSql();
         $sql .= ' ORDER BY `' . $this->settings->positionColumnName . '` DESC';
 
-        $row = $this->database->query($sql, ...$params)->fetch();
+        $row = $this->database->fetch($sql, ...$params);
 
         if (!empty($row)) {
             return is_null($row[$this->settings->positionColumnName]) ? null : max(1, intval($row[$this->settings->positionColumnName]));
