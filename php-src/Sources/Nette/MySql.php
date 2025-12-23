@@ -240,6 +240,12 @@ class MySql implements SourceInterface
                 }
             }
         }
+        if (empty($pairs)) {
+            // @codeCoverageIgnoreStart
+            // when this happens it is problem with inserted data, not with library
+            throw new \RuntimeException('No lookup data!');
+        }
+        // @codeCoverageIgnoreEnd
 
         $row = $this->database
             ->table($this->settings->tableName)
@@ -270,6 +276,9 @@ class MySql implements SourceInterface
                     $pairs[$translateColumn] = $value;
                 }
             }
+        }
+        if (empty($pairs)) {
+            return false;
         }
 
         $count = $this->database
@@ -344,6 +353,7 @@ class MySql implements SourceInterface
      */
     public function makeHole(?Support\Node $parent, int $position, bool $moveUp, ?Support\Conditions $where = null) : bool
     {
+        $parent = $parent ?: ($this->settings->rootIsNull ? null : new Support\Node());
         $direction = $moveUp ? '-' : '+';
         $compare = $moveUp ? '<=' : '>=';
         $sql = 'UPDATE ' . $this->settings->tableName;
@@ -373,6 +383,18 @@ class MySql implements SourceInterface
      */
     public function deleteSolo(Support\Node $node, ?Support\Conditions $where) : bool
     {
+        if (!empty($soft = $this->settings->softDelete)) {
+            $selection = $this->database
+                ->table($this->settings->tableName)
+                ->where([$this->settings->idColumnName => $node->id]);
+            $this->addCustomQuery($selection, $where, '');
+            $this->addSoftDelete($selection);
+            $rows = $selection->update([
+                $soft->columnName => $soft->isDeleted
+            ]);
+            return !empty($rows);
+        }
+
         $selection = $this->database
             ->table($this->settings->tableName)
             ->where([$this->settings->idColumnName => $node->id]);
