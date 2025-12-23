@@ -5,6 +5,8 @@ namespace Tests;
 use kalanis\nested_tree\Support;
 // use Mockery\Adapter\Phpunit\MockeryPHPUnitIntegration;
 use Nette\Bootstrap\Configurator;
+use Nette\Database\Explorer;
+use Nette\Database\Row;
 use Nette\DI\Container;
 use Tester;
 
@@ -56,5 +58,11 @@ abstract class TestCase extends Tester\TestCase
         sort($data);
 
         return array_values($data);
+    }
+
+    protected function getRow(Explorer $database, Support\TableSettings $settings, int $rowId) : ?Row
+    {
+        $sql = 'SELECT * FROM ' . $settings->tableName . ' WHERE ' . $settings->idColumnName . ' = ?';
+        return $database->query($sql, $rowId)->fetch();
     }
 }

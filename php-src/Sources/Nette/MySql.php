@@ -25,16 +25,29 @@ class MySql implements SourceInterface
      */
     public function selectLastPosition(?Support\Node $parentNode, ?Support\Conditions $where) : ?int
     {
-        $selection = $this->database
-            ->table($this->settings->tableName)
-            ->where([$this->settings->parentIdColumnName => $parentNode?->id]);
-        $this->addCustomQuery($selection, $where);
-        $this->addSoftDelete($selection);
-        $result = $selection
-            ->order($this->settings->positionColumnName . ' DESC')
-            ->fetch();
+        $sql = 'SELECT `' . $this->settings->idColumnName . '`, `' . $this->settings->parentIdColumnName . '`, `' . $this->settings->positionColumnName . '`'
+            . ' FROM `' . $this->settings->tableName . '`'
+            . ' WHERE TRUE';
+        if (is_null($parentNode?->id)) {
+            $sql .= ' AND `' . $this->settings->parentIdColumnName . '` IS NULL';
+        } else {
+            $sql .= ' AND `' . $this->settings->parentIdColumnName . '` = ?';
+        }
+        $params = [];
+        if (!is_null($parentNode?->id)) {
+            $params[] = $parentNode->id;
+        }
+        $sql .= $this->addCustomQuerySql($params, $where, '');
+        $sql .= $this->addSoftDeleteSql();
+        $sql .= ' ORDER BY `' . $this->settings->positionColumnName . '` DESC';
 
-        return !empty($result) ? max(1, intval($result->{$this->settings->positionColumnName})) : null;
+        $row = $this->database->query($sql, ...$params)->fetch();
+
+        if (!empty($row)) {
+            return is_null($row[$this->settings->positionColumnName]) ? null : max(1, intval($row[$this->settings->positionColumnName]));
+        }
+
+        return null;
     }
 
     /**
@@ -334,13 +347,13 @@ class MySql implements SourceInterface
         $direction = $moveUp ? '-' : '+';
         $compare = $moveUp ? '<=' : '>=';
         $sql = 'UPDATE ' . $this->settings->tableName;
-        $sql .= ' SET ' . $this->settings->positionColumnName . ' = ' . $this->settings->positionColumnName . ' ' . $direction . ' 1';
+        $sql .= ' SET `' . $this->settings->positionColumnName . '` = `' . $this->settings->positionColumnName . '` ' . $direction . ' 1';
         if (is_null($parent)) {
             $sql .= ' WHERE ' . $this->settings->parentIdColumnName . ' IS NULL';
         } else {
             $sql .= ' WHERE ' . $this->settings->parentIdColumnName . ' = ?';
         }
-        $sql .= ' AND ' . $this->settings->positionColumnName . ' ' . $compare . ' ?';
+        $sql .= ' AND `' . $this->settings->positionColumnName . '` ' . $compare . ' ?';
         $sql .= $this->addSoftDeleteSql();
         $params = [];
         if (!is_null($parent)) {
@@ -416,7 +429,7 @@ class MySql implements SourceInterface
 
     protected function replaceColumns(string $query, string $byWhat = '') : string
     {
-        foreach (['`parent`.', '`child`.', 'parent.', 'child.'] as $toReplace) {
+        foreach (['`parent`.', '`child`.', '`node`.', 'parent.', 'child.', 'node.'] as $toReplace) {
             $query = str_replace($toReplace, $byWhat, $query);
         }
 
