@@ -390,8 +390,9 @@ class MySql implements SourceInterface
             $this->addCustomQuery($selection, $where, '');
             $this->addSoftDelete($selection);
             $rows = $selection->update([
-                $soft->columnName => $soft->isDeleted
+                $soft->columnName => $soft->isDeleted,
             ]);
+
             return !empty($rows);
         }
 
