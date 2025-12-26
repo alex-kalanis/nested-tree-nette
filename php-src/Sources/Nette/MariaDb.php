@@ -13,13 +13,14 @@ class MariaDb extends MySql
 {
     public function selectCount(Support\Options $options) : int
     {
+        $joinChild = $this->canJoinChild($options);
         $sql = 'SELECT ';
         $sql .= ' parent.' . $this->settings->idColumnName . ' AS p_cid';
         $sql .= ', parent.' . $this->settings->parentIdColumnName . ' AS p_pid';
         if ($this->settings->softDelete) {
             $sql .= ', parent.' . $this->settings->softDelete->columnName;
         }
-        if (!is_null($options->currentId) || !is_null($options->parentId) || !empty($options->search) || $options->joinChild) {
+        if ($joinChild) {
             $sql .= ', child.' . $this->settings->idColumnName . ' AS `' . $this->settings->idColumnName . '`';
             $sql .= ', child.' . $this->settings->parentIdColumnName . ' AS `' . $this->settings->parentIdColumnName . '`';
             $sql .= ', child.' . $this->settings->leftColumnName . ' AS `' . $this->settings->leftColumnName . '`';
@@ -27,7 +28,7 @@ class MariaDb extends MySql
         $sql .= $this->addAdditionalColumnsSql($options);
         $sql .= ' FROM ' . $this->settings->tableName . ' AS parent';
 
-        if (!is_null($options->currentId) || !is_null($options->parentId) || !empty($options->search) || $options->joinChild) {
+        if ($joinChild) {
             // if there is filter or search, there must be inner join to select all of filtered children.
             $sql .= ' INNER JOIN ' . $this->settings->tableName . ' AS child';
             $sql .= ' ON child.' . $this->settings->leftColumnName . ' BETWEEN parent.' . $this->settings->leftColumnName . ' AND parent.' . $this->settings->rightColumnName;
@@ -52,11 +53,15 @@ class MariaDb extends MySql
 
     public function selectLimited(Support\Options $options) : array
     {
+        $joinChild = $this->canJoinChild($options);
         $sql = 'SELECT';
-        $sql .= ' parent.' . $this->settings->idColumnName . ' AS p_pid';
-        $sql .= ', parent.' . $this->settings->parentIdColumnName . ' AS p_cid';
-        $sql .= ', parent.' . $this->settings->leftColumnName . ' AS p_plt';
-        if (!is_null($options->currentId) || !is_null($options->parentId) || !empty($options->search) || $options->joinChild) {
+        $sql .= ' parent.' . $this->settings->idColumnName . ($joinChild ? ' AS p_pid' : ' AS `' . $this->settings->idColumnName . '`');
+        $sql .= ', parent.' . $this->settings->parentIdColumnName . ($joinChild ? ' AS p_cid' : ' AS `' . $this->settings->parentIdColumnName . '`');
+        $sql .= ', parent.' . $this->settings->leftColumnName . ($joinChild ? ' AS p_plt' : ' AS `' . $this->settings->leftColumnName . '`');
+        $sql .= ', parent.' . $this->settings->rightColumnName . ($joinChild ? ' AS p_prt' : ' AS `' . $this->settings->rightColumnName . '`');
+        $sql .= ', parent.' . $this->settings->levelColumnName . ($joinChild ? ' AS p_plv' : ' AS `' . $this->settings->levelColumnName . '`');
+        $sql .= ', parent.' . $this->settings->positionColumnName . ($joinChild ? ' AS p_pps' : ' AS `' . $this->settings->positionColumnName . '`');
+        if ($joinChild) {
             $sql .= ', child.' . $this->settings->idColumnName . ' AS `' . $this->settings->idColumnName . '`';
             $sql .= ', child.' . $this->settings->parentIdColumnName . ' AS `' . $this->settings->parentIdColumnName . '`';
             $sql .= ', child.' . $this->settings->leftColumnName . ' AS `' . $this->settings->leftColumnName . '`';
@@ -67,7 +72,7 @@ class MariaDb extends MySql
         $sql .= $this->addAdditionalColumnsSql($options);
         $sql .= ' FROM ' . $this->settings->tableName . ' AS parent';
 
-        if (!is_null($options->currentId) || !is_null($options->parentId) || !empty($options->search) || $options->joinChild) {
+        if ($joinChild) {
             // if there is filter or search, there must be inner join to select all of filtered children.
             $sql .= ' INNER JOIN ' . $this->settings->tableName . ' AS child';
             $sql .= ' ON child.' . $this->settings->leftColumnName . ' BETWEEN parent.' . $this->settings->leftColumnName . ' AND parent.' . $this->settings->rightColumnName;
@@ -97,7 +102,7 @@ class MariaDb extends MySql
 
         $result = $this->database->fetchAll($sql, ...$params);
 
-        return $result ? $this->fromDbRows($result) : [];
+        return $result ? $this->fromDbRows($result, $joinChild) : [];
     }
 
     /**

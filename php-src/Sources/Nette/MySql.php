@@ -4,14 +4,15 @@ namespace kalanis\nested_tree_nette\Sources\Nette;
 
 use kalanis\nested_tree\Sources\SourceInterface;
 use kalanis\nested_tree\Support;
+use kalanis\nested_tree_nette\Support\RowsTrait;
 use Nette\Database\Explorer;
-use Nette\Database\Row;
 use Nette\Database\Table\ActiveRow;
 use Nette\Database\Table\Selection;
 
 class MySql implements SourceInterface
 {
     use Support\ColumnsTrait;
+    use RowsTrait;
 
     public function __construct(
         protected readonly Explorer $database,
@@ -102,13 +103,14 @@ class MySql implements SourceInterface
 
     public function selectCount(Support\Options $options) : int
     {
+        $joinChild = $this->canJoinChild($options);
         $sql = 'SELECT ';
         $sql .= ' ANY_VALUE(parent.' . $this->settings->idColumnName . ') AS p_cid';
         $sql .= ', ANY_VALUE(parent.' . $this->settings->parentIdColumnName . ') AS p_pid';
         if ($this->settings->softDelete) {
             $sql .= ', ANY_VALUE(parent.' . $this->settings->softDelete->columnName . ')';
         }
-        if (!is_null($options->currentId) || !is_null($options->parentId) || !empty($options->search) || $options->joinChild) {
+        if ($joinChild) {
             $sql .= ', ANY_VALUE(child.' . $this->settings->idColumnName . ') AS `' . $this->settings->idColumnName . '`';
             $sql .= ', ANY_VALUE(child.' . $this->settings->parentIdColumnName . ') AS `' . $this->settings->parentIdColumnName . '`';
             $sql .= ', ANY_VALUE(child.' . $this->settings->leftColumnName . ') AS `' . $this->settings->leftColumnName . '`';
@@ -116,7 +118,7 @@ class MySql implements SourceInterface
         $sql .= $this->addAdditionalColumnsSql($options);
         $sql .= ' FROM ' . $this->settings->tableName . ' AS parent';
 
-        if (!is_null($options->currentId) || !is_null($options->parentId) || !empty($options->search) || $options->joinChild) {
+        if ($joinChild) {
             // if there is filter or search, there must be inner join to select all of filtered children.
             $sql .= ' INNER JOIN ' . $this->settings->tableName . ' AS child';
             $sql .= ' ON child.' . $this->settings->leftColumnName . ' BETWEEN parent.' . $this->settings->leftColumnName . ' AND parent.' . $this->settings->rightColumnName;
@@ -141,11 +143,15 @@ class MySql implements SourceInterface
 
     public function selectLimited(Support\Options $options) : array
     {
+        $joinChild = $this->canJoinChild($options);
         $sql = 'SELECT';
-        $sql .= ' ANY_VALUE(parent.' . $this->settings->idColumnName . ') AS p_pid';
-        $sql .= ', ANY_VALUE(parent.' . $this->settings->parentIdColumnName . ') AS p_cid';
-        $sql .= ', ANY_VALUE(parent.' . $this->settings->leftColumnName . ') AS p_plt';
-        if (!is_null($options->currentId) || !is_null($options->parentId) || !empty($options->search) || $options->joinChild) {
+        $sql .= ' ANY_VALUE(parent.' . $this->settings->idColumnName . ')' . ($joinChild ? ' AS p_pid' : ' AS `' . $this->settings->idColumnName . '`');
+        $sql .= ', ANY_VALUE(parent.' . $this->settings->parentIdColumnName . ')' . ($joinChild ? ' AS p_cid' : ' AS `' . $this->settings->parentIdColumnName . '`');
+        $sql .= ', ANY_VALUE(parent.' . $this->settings->leftColumnName . ')' . ($joinChild ? ' AS p_plt' : ' AS `' . $this->settings->leftColumnName . '`');
+        $sql .= ', ANY_VALUE(parent.' . $this->settings->rightColumnName . ')' . ($joinChild ? ' AS p_prt' : ' AS `' . $this->settings->rightColumnName . '`');
+        $sql .= ', ANY_VALUE(parent.' . $this->settings->levelColumnName . ')' . ($joinChild ? ' AS p_plv' : ' AS `' . $this->settings->levelColumnName . '`');
+        $sql .= ', ANY_VALUE(parent.' . $this->settings->positionColumnName . ')' . ($joinChild ? ' AS p_pps' : ' AS `' . $this->settings->positionColumnName . '`');
+        if ($joinChild) {
             $sql .= ', ANY_VALUE(child.' . $this->settings->idColumnName . ') AS `' . $this->settings->idColumnName . '`';
             $sql .= ', ANY_VALUE(child.' . $this->settings->parentIdColumnName . ') AS `' . $this->settings->parentIdColumnName . '`';
             $sql .= ', ANY_VALUE(child.' . $this->settings->leftColumnName . ') AS `' . $this->settings->leftColumnName . '`';
@@ -156,7 +162,7 @@ class MySql implements SourceInterface
         $sql .= $this->addAdditionalColumnsSql($options);
         $sql .= ' FROM ' . $this->settings->tableName . ' AS parent';
 
-        if (!is_null($options->currentId) || !is_null($options->parentId) || !empty($options->search) || $options->joinChild) {
+        if ($joinChild) {
             // if there is filter or search, there must be inner join to select all of filtered children.
             $sql .= ' INNER JOIN ' . $this->settings->tableName . ' AS child';
             $sql .= ' ON child.' . $this->settings->leftColumnName . ' BETWEEN parent.' . $this->settings->leftColumnName . ' AND parent.' . $this->settings->rightColumnName;
@@ -186,7 +192,7 @@ class MySql implements SourceInterface
 
         $result = $this->database->fetchAll($sql, ...$params);
 
-        return $result ? $this->fromDbRows($result) : [];
+        return $result ? $this->fromDbRows($result, $joinChild) : [];
     }
 
     /**
@@ -406,45 +412,6 @@ class MySql implements SourceInterface
         return !empty($counter);
     }
 
-    /**
-     * @param array<Row|ActiveRow> $rows
-     * @return array<int<0, max>, Support\Node>
-     */
-    protected function fromDbRows(array $rows) : array
-    {
-        $result = [];
-        foreach ($rows as &$row) {
-            $data = $this->fillDataFromRow($row);
-            $result[$data->id] = $data;
-        }
-
-        return $result;
-    }
-
-    protected function fillDataFromRow(Row|ActiveRow $row) : Support\Node
-    {
-        $data = clone $this->nodeBase;
-        foreach ($row as $k => $v) {
-            if ($this->settings->idColumnName === $k) {
-                $data->id = max(0, intval($v));
-            } elseif ($this->settings->parentIdColumnName === $k) {
-                $data->parentId = is_null($v) && $this->settings->rootIsNull ? null : max(0, intval($v));
-            } elseif ($this->settings->levelColumnName === $k) {
-                $data->level = max(0, intval($v));
-            } elseif ($this->settings->leftColumnName === $k) {
-                $data->left = max(0, intval($v));
-            } elseif ($this->settings->rightColumnName === $k) {
-                $data->right = max(0, intval($v));
-            } elseif ($this->settings->positionColumnName === $k) {
-                $data->position = max(0, intval($v));
-            } else {
-                $data->{$k} = strval($v);
-            }
-        }
-
-        return $data;
-    }
-
     protected function bindToQuery(string $string) : string
     {
         return strval(preg_replace('#(:[^\s]+)#', '?', $string));
@@ -658,7 +625,7 @@ class MySql implements SourceInterface
     {
         $sql = '';
         if (!$options->noSortOrder) {
-            if (!is_null($options->currentId) || !is_null($options->parentId) || !empty($options->search) || $options->joinChild) {
+            if ($this->canJoinChild($options)) {
                 $sql .= ' GROUP BY child.' . $this->settings->idColumnName;
                 $order_by = 'child.' . $this->settings->leftColumnName . ' ASC';
             } elseif (!empty($options->filterIdBy)) {
@@ -686,5 +653,10 @@ class MySql implements SourceInterface
         return array_filter($entries, function ($entry) : bool {
             return is_null($entry) || is_numeric($entry) || is_string($entry);
         });
+    }
+
+    protected function canJoinChild(Support\Options $options) : bool
+    {
+        return (!is_null($options->currentId) || !is_null($options->parentId) || !empty($options->search) || $options->joinChild);
     }
 }

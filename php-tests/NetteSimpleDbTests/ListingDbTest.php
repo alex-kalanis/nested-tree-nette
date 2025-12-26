@@ -13,6 +13,37 @@ use Tester\Assert;
 class ListingDbTest extends AbstractSimpleDbTests
 {
     /**
+     * Test listing the taxonomy data without any option / opinion
+     */
+    public function testListTaxonomySimple() : void
+    {
+        $this->dataRefill();
+        $this->nestedSet->rebuild();
+
+        // tests with options.
+        $result = $this->nestedSet->listNodes();
+        // assert
+        Assert::equal(20, $result->count); // all entries
+        Assert::count(3, $result->items); // all items on root
+    }
+
+    /**
+     * Test listing the taxonomy data in flat style with many options.
+     */
+    public function testListTaxonomyFlat() : void
+    {
+        $this->dataRefill();
+        $this->nestedSet->rebuild();
+
+        $options = new Options();
+        $options->listFlattened = true;
+        $result = $this->nestedSet->listNodes($options);
+        // assert
+        Assert::equal(20, $result->count); // all entries
+        Assert::count(20, $result->items); // all items
+    }
+
+    /**
      * Test listing the taxonomy data in hierarchy or flatten styles with many options.
      */
     public function testListTaxonomyFullCount() : void
@@ -31,7 +62,7 @@ class ListingDbTest extends AbstractSimpleDbTests
         Assert::equal(20, $result->count);
         Assert::count(3, iterator_to_array($result));
         // due to this is nested list (tree list),
-        // it is not flatten list then it will be count only root items which there are just 3.
+        // it is not flat list then it will be count only root items which there are just 3.
         // (Root 1, Root 2, Root 3.)
     }
 
@@ -151,7 +182,7 @@ class ListingDbTest extends AbstractSimpleDbTests
 
         // assert
         Assert::equal(4, $result->count); // with children.
-        Assert::count(1, $result->items); // only root items because not flatten.
+        Assert::count(4, $result->items); // all items
     }
 
     /**
@@ -191,7 +222,7 @@ class ListingDbTest extends AbstractSimpleDbTests
 
         // assert
         Assert::equal(20, $list_txn->count);
-        Assert::count(20, $list_txn->items); // due to this is flatten list, it will be count all items that were fetched which there are 20 items.
+        Assert::count(20, $list_txn->items); // due to this is flat list, it will be count all items that were fetched which there are 20 items.
     }
 
     /**
