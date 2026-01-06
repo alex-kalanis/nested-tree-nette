@@ -239,6 +239,9 @@ class MySql implements SourceInterface
             if (
                 !is_numeric($column)
                 && !$this->isColumnNameFromBasic($column)
+                && !$this->isColumnNameFromSpecial($column)
+                && $this->allowColumn($this->settings, $column)
+                && $this->allowColumnWithEmptyValue($this->settings, $column, $value)
             ) {
                 $translateColumn = $this->translateColumn($this->settings, $column);
                 if (!is_null($translateColumn)) {
@@ -276,6 +279,9 @@ class MySql implements SourceInterface
                 !is_numeric($column)
                 && !$this->isColumnNameFromBasic($column)
                 && !$this->isColumnNameFromTree($column)
+                && !$this->isColumnNameFromSpecial($column)
+                && $this->allowColumn($this->settings, $column)
+                && $this->allowColumnWithEmptyValue($this->settings, $column, $value)
             ) {
                 $translateColumn = $this->translateColumn($this->settings, $column);
                 if (!is_null($translateColumn)) {

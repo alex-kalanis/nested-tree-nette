@@ -17,7 +17,7 @@ trait RowsTrait
     /**
      * @param array<Row|ActiveRow> $rows
      * @param bool $hasIdAsKey
-     * @return array<int<0, max>, Node>
+     * @return array<int<-1, max>, Node>
      */
     protected function fromDbRows(array $rows, bool $hasIdAsKey = true) : array
     {
